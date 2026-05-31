@@ -96,15 +96,19 @@ class DeltaruneSaveSystem {
         <div class="save-system-body" id="saveSystemBody"></div>
         <div class="save-system-footer">
           <div>Alt+O = Open menu  ·  Alt+S = Save quick slot  ·  Alt+L = Load quick slot</div>
+          <button id="saveSystemImportButton" class="footer-button">Import Save</button>
         </div>
       </div>
       <button id="saveSystemOpenButton" class="save-system-open-button">Save Menu</button>
+      <input type="file" id="saveSystemImportInput" accept=".deltarune-save" style="display:none" />
     `;
     document.body.appendChild(container);
     this.injectStyles();
     document.getElementById("saveSystemClose").addEventListener("click", () => this.closeMenu());
     document.getElementById("saveSystemOverlay").addEventListener("click", () => this.closeMenu());
     document.getElementById("saveSystemOpenButton").addEventListener("click", () => this.openMenu());
+    document.getElementById("saveSystemImportButton").addEventListener("click", () => this.triggerImportDialog());
+    document.getElementById("saveSystemImportInput").addEventListener("change", (e) => this.handleImportInput(e));
     this.renderSlots();
   }
 
@@ -195,6 +199,7 @@ class DeltaruneSaveSystem {
       }
       .slot-actions button.save { background: #1e88e5; }
       .slot-actions button.load { background: #43a047; }
+      .slot-actions button.export { background: #f0a500; color: #121212; }
       .slot-actions button.delete { background: #e53935; }
       .save-system-footer {
         margin-top: 12px;
@@ -202,6 +207,19 @@ class DeltaruneSaveSystem {
         color: #cfd8dc;
         border-top: 1px solid #2c2c2c;
         padding-top: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+      .footer-button {
+        background: #1565c0;
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-weight: 700;
       }
       .save-system-open-button {
         position: fixed;
@@ -253,12 +271,14 @@ class DeltaruneSaveSystem {
         <div class="slot-actions">
           <button class="save" data-slot="${slot}">Save</button>
           <button class="load" data-slot="${slot}">Load</button>
+          <button class="export" data-slot="${slot}">Export</button>
           <button class="delete" data-slot="${slot}">Delete</button>
         </div>
       `;
       body.appendChild(card);
       card.querySelector("button.save").addEventListener("click", () => this.saveState(slot));
       card.querySelector("button.load").addEventListener("click", () => this.loadState(slot));
+      card.querySelector("button.export").addEventListener("click", () => this.exportSaveState(slot));
       card.querySelector("button.delete").addEventListener("click", () => this.deleteState(slot));
     }
   }
@@ -333,6 +353,96 @@ class DeltaruneSaveSystem {
       console.error(error);
       this.showNotification("Delete failed", "error");
     }
+  }
+
+  async exportSaveState(slot) {
+    const saveState = await this.getSaveState(slot);
+    if (!saveState) {
+      this.showNotification(`Slot ${slot + 1} is empty`, "error");
+      return;
+    }
+    try {
+      const metadata = {
+        id: saveState.id,
+        slot: saveState.slot,
+        chapter: saveState.chapter,
+        timestamp: saveState.timestamp,
+        sizeBytes: saveState.sizeBytes,
+      };
+      const headerText = JSON.stringify(metadata);
+      const encoder = new TextEncoder();
+      const headerBytes = encoder.encode(headerText);
+      const headerLength = new Uint32Array([headerBytes.byteLength]);
+      const blob = new Blob([headerLength.buffer, headerBytes, saveState.memory], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${this.currentChapter}_slot${slot + 1}.deltarune-save`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      this.showNotification(`Exported slot ${slot + 1}`, "success");
+    } catch (error) {
+      console.error(error);
+      this.showNotification("Export failed", "error");
+    }
+  }
+
+  triggerImportDialog() {
+    const input = document.getElementById("saveSystemImportInput");
+    if (input) {
+      input.value = "";
+      input.click();
+    }
+  }
+
+  async handleImportInput(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const slot = parseInt(window.prompt("Import to slot number (1-8):", "1"), 10);
+      if (!slot || slot < 1 || slot > this.NUM_SLOTS) {
+        this.showNotification("Import cancelled: invalid slot", "error");
+        return;
+      }
+      const data = await this.parseSaveFile(file);
+      if (!data) {
+        this.showNotification("Invalid save file", "error");
+        return;
+      }
+      const saveState = {
+        id: `${this.currentChapter}_slot_${slot - 1}`,
+        slot: slot - 1,
+        chapter: this.currentChapter,
+        timestamp: new Date().toISOString(),
+        sizeBytes: data.memory.byteLength,
+        memory: data.memory,
+      };
+      await this.storeSaveState(saveState);
+      this.showNotification(`Imported save to slot ${slot}`, "success");
+      this.updateSaveListUI();
+    } catch (error) {
+      console.error(error);
+      this.showNotification("Import failed", "error");
+    }
+  }
+
+  async parseSaveFile(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    if (arrayBuffer.byteLength < 4) return null;
+    const headerLengthView = new DataView(arrayBuffer, 0, 4);
+    const headerLength = headerLengthView.getUint32(0, true);
+    if (arrayBuffer.byteLength < 4 + headerLength) return null;
+    const headerBytes = new Uint8Array(arrayBuffer, 4, headerLength);
+    const decoder = new TextDecoder();
+    const headerText = decoder.decode(headerBytes);
+    let metadata;
+    try {
+      metadata = JSON.parse(headerText);
+    } catch (error) {
+      return null;
+    }
+    const memory = new Uint8Array(arrayBuffer, 4 + headerLength);
+    return { metadata, memory };
   }
 
   captureMemoryState() {
