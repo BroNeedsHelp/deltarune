@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <base href="https://cdn.jsdelivr.net/gh/technonyte00/deltarune@main/">
+  <base>
   <meta charset="UTF-8">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -31,7 +31,7 @@
       <span class="title">Prophecy</span>
       <img src="icons/4.png">
     </a>
-    <a href="javascript:alert('Chapter 5 coming soon!')" class="disabled-row">
+    <a href="javascript:alert('Chapter 5 coming really soon!')" class="disabled-row">
       <span class="chapter">Chapter 5</span>
       <span class="disabled-title">--</span>
       <img src="icons/0.png">
@@ -157,5 +157,32 @@
       }
     });
   </script>
+  <!-- Save UI overlay -->
+<div id="save-ui"
+     style="position:fixed;top:10px;right:10px;z-index:99999;
+            display:none;background:rgba(0,0,0,0.7);padding:8px;
+            border-radius:6px;color:white;font-family:sans-serif;
+            font-size:12px;">
+  <button id="save-btn">Save</button>
+  <button id="load-btn">Load</button>
+  <button id="export-btn">Export</button>
+  <button id="import-btn">Import</button>
+</div>
+
+<script>
+  (function () {
+    const ui = document.getElementById("save-ui");
+    let hideTimeout;
+
+    window.addEventListener("mousemove", () => {
+      ui.style.display = "block";
+      clearTimeout(hideTimeout);
+      hideTimeout = setTimeout(() => {
+        ui.style.display = "none";
+      }, 2000);
+    });
+  })();
+</script>
+
 </body>
 </html>
