@@ -781,8 +781,23 @@ class DeltaruneSaveSystem {
 }
 
 const initializeDeltaruneSaveSystem = () => {
-  window.deltaruneSaveSystem = new DeltaruneSaveSystem();
+  try {
+    window.deltaruneSaveSystem = new DeltaruneSaveSystem();
+  } catch (e) {
+    console.error('[SaveSystem] Initialization exception', e);
+    try { if (window.deltaruneSaveSystem && typeof window.deltaruneSaveSystem.showNotification === 'function') window.deltaruneSaveSystem.showNotification('SaveSystem init error', 'error'); } catch (_) {}
+  }
 };
+
+// Global error listener to capture runtime exceptions relevant to the save system
+if (!window.__saveSystemGlobalErrorHandlerAdded) {
+  window.addEventListener('error', (ev) => {
+    try {
+      console.error('[SaveSystem] Global error', ev.message, ev.filename, ev.lineno, ev.colno, ev.error);
+    } catch (e) { /* ignore */ }
+  });
+  window.__saveSystemGlobalErrorHandlerAdded = true;
+}
 if (document.readyState === "complete" || document.readyState === "interactive") {
   initializeDeltaruneSaveSystem();
 } else {
