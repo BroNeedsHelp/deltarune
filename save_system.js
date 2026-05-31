@@ -506,6 +506,7 @@ class DeltaruneSaveSystem {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
+      console.log('[SaveSystem] Import file selected:', file.name, file.size);
       const slot = parseInt(window.prompt("Import to slot number (1-8):", "1"), 10);
       if (!slot || slot < 1 || slot > this.NUM_SLOTS) {
         this.showNotification("Import cancelled: invalid slot", "error");
@@ -516,40 +517,52 @@ class DeltaruneSaveSystem {
         this.showNotification("Invalid save file", "error");
         return;
       }
+      // Create a detached copy of the memory so IndexedDB stores a clean ArrayBuffer
+      const memView = new Uint8Array(data.memory);
+      const memCopy = new Uint8Array(memView.length);
+      memCopy.set(memView);
       const saveState = {
         id: `${this.currentChapter}_slot_${slot - 1}`,
         slot: slot - 1,
         chapter: this.currentChapter,
         timestamp: new Date().toISOString(),
-        sizeBytes: data.memory.byteLength,
-        memory: data.memory,
+        sizeBytes: memCopy.byteLength,
+        memory: memCopy.buffer,
       };
       await this.storeSaveState(saveState);
+      console.log('[SaveSystem] Import stored to DB', saveState.id, 'bytes', saveState.sizeBytes);
       this.showNotification(`Imported save to slot ${slot}`, "success");
       this.updateSaveListUI();
     } catch (error) {
-      console.error(error);
+      console.error('[SaveSystem] Import failed', error);
       this.showNotification("Import failed", "error");
     }
   }
 
   async parseSaveFile(file) {
-    const arrayBuffer = await file.arrayBuffer();
-    if (arrayBuffer.byteLength < 4) return null;
-    const headerLengthView = new DataView(arrayBuffer, 0, 4);
-    const headerLength = headerLengthView.getUint32(0, true);
-    if (arrayBuffer.byteLength < 4 + headerLength) return null;
-    const headerBytes = new Uint8Array(arrayBuffer, 4, headerLength);
-    const decoder = new TextDecoder();
-    const headerText = decoder.decode(headerBytes);
-    let metadata;
     try {
-      metadata = JSON.parse(headerText);
+      const arrayBuffer = await file.arrayBuffer();
+      if (arrayBuffer.byteLength < 4) return null;
+      const headerLengthView = new DataView(arrayBuffer, 0, 4);
+      const headerLength = headerLengthView.getUint32(0, true);
+      if (arrayBuffer.byteLength < 4 + headerLength) return null;
+      const headerBytes = new Uint8Array(arrayBuffer, 4, headerLength);
+      const decoder = new TextDecoder();
+      const headerText = decoder.decode(headerBytes);
+      let metadata;
+      try {
+        metadata = JSON.parse(headerText);
+      } catch (error) {
+        console.error('[SaveSystem] Failed to parse save header JSON', error);
+        return null;
+      }
+      const memory = new Uint8Array(arrayBuffer, 4 + headerLength);
+      console.log('[SaveSystem] Parsed save file:', metadata, 'memoryBytes:', memory.byteLength);
+      return { metadata, memory };
     } catch (error) {
+      console.error('[SaveSystem] Error reading save file', error);
       return null;
     }
-    const memory = new Uint8Array(arrayBuffer, 4 + headerLength);
-    return { metadata, memory };
   }
 
   captureMemoryState() {
