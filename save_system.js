@@ -124,16 +124,17 @@ class DeltaruneSaveSystem {
     document.getElementById("saveSystemOverlay").addEventListener("click", () => this.closeMenu());
     // Dock button handlers
     const qs = document.getElementById("saveSystemQuickSave");
-    if (qs) qs.addEventListener("click", () => this.saveState(this.quickSaveSlot));
+    if (qs) qs.addEventListener("click", (e) => { console.log('[SaveSystem] QuickSave clicked'); e.stopPropagation(); this.saveState(this.quickSaveSlot); });
     const ql = document.getElementById("saveSystemQuickLoad");
-    if (ql) ql.addEventListener("click", () => this.loadState(this.quickSaveSlot));
+    if (ql) ql.addEventListener("click", (e) => { console.log('[SaveSystem] QuickLoad clicked'); e.stopPropagation(); this.loadState(this.quickSaveSlot); });
     const exp = document.getElementById("saveSystemExport");
-    if (exp) exp.addEventListener("click", () => this.exportSaveState(this.quickSaveSlot));
+    if (exp) exp.addEventListener("click", (e) => { console.log('[SaveSystem] Export clicked'); e.stopPropagation(); this.exportSaveState(this.quickSaveSlot); });
     const impDock = document.getElementById("saveSystemImportDock");
-    if (impDock) impDock.addEventListener("click", () => this.triggerImportDialog());
+    if (impDock) impDock.addEventListener("click", (e) => { console.log('[SaveSystem] Import dock clicked'); e.stopPropagation(); this.triggerImportDialog(); });
     const openBtn = document.getElementById("saveSystemOpenButton");
-    if (openBtn) openBtn.addEventListener("click", () => this.openMenu());
-    document.getElementById("saveSystemImportButton").addEventListener("click", () => this.triggerImportDialog());
+    if (openBtn) openBtn.addEventListener("click", (e) => { console.log('[SaveSystem] OpenMenu clicked'); e.stopPropagation(); this.openMenu(); });
+    const importBtn = document.getElementById("saveSystemImportButton");
+    if (importBtn) importBtn.addEventListener("click", (e) => { console.log('[SaveSystem] Import button clicked'); e.stopPropagation(); this.triggerImportDialog(); });
     document.getElementById("saveSystemImportInput").addEventListener("change", (e) => this.handleImportInput(e));
     this.renderSlots();
   }
@@ -147,7 +148,7 @@ class DeltaruneSaveSystem {
         font-family: Arial, sans-serif;
         position: fixed;
         inset: 0;
-        pointer-events: none;
+        pointer-events: auto;
         z-index: 2147483647 !important;
       }
       .save-system-overlay {
