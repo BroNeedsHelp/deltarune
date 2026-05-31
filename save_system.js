@@ -119,24 +119,54 @@ class DeltaruneSaveSystem {
         <input type="file" id="saveSystemImportInput" accept=".deltarune-save" style="display:none" />
     `;
     document.body.appendChild(container);
+    // Debug badge for quick status and click logs
+    if (!document.getElementById('saveSystemDebugBadge')) {
+      const dbg = document.createElement('div');
+      dbg.id = 'saveSystemDebugBadge';
+      dbg.textContent = 'SaveSystem: init';
+      document.body.appendChild(dbg);
+    }
+    // Suppress noisy autoplay promise rejections related to play() policy
+    if (!window.__saveSystemUnhandledRejectionHandlerAdded) {
+      window.addEventListener('unhandledrejection', (ev) => {
+        try {
+          const reason = ev && ev.reason && (ev.reason.message || ev.reason.toString && ev.reason.toString());
+          if (reason && /play\(\) failed/i.test(reason)) {
+            console.warn('[SaveSystem] Suppressed autoplay rejection:', reason);
+            ev.preventDefault();
+          }
+        } catch (e) {
+          /* ignore */
+        }
+      });
+      window.__saveSystemUnhandledRejectionHandlerAdded = true;
+    }
     this.injectStyles();
     document.getElementById("saveSystemClose").addEventListener("click", () => this.closeMenu());
     document.getElementById("saveSystemOverlay").addEventListener("click", () => this.closeMenu());
     // Dock button handlers
     const qs = document.getElementById("saveSystemQuickSave");
-    if (qs) qs.addEventListener("click", (e) => { console.log('[SaveSystem] QuickSave clicked'); e.stopPropagation(); this.saveState(this.quickSaveSlot); });
+    if (qs) qs.addEventListener("click", (e) => { console.log('[SaveSystem] QuickSave clicked'); e.stopPropagation(); this.debugLog('[SaveSystem] QuickSave clicked'); this.saveState(this.quickSaveSlot); });
     const ql = document.getElementById("saveSystemQuickLoad");
-    if (ql) ql.addEventListener("click", (e) => { console.log('[SaveSystem] QuickLoad clicked'); e.stopPropagation(); this.loadState(this.quickSaveSlot); });
+    if (ql) ql.addEventListener("click", (e) => { console.log('[SaveSystem] QuickLoad clicked'); e.stopPropagation(); this.debugLog('[SaveSystem] QuickLoad clicked'); this.loadState(this.quickSaveSlot); });
     const exp = document.getElementById("saveSystemExport");
-    if (exp) exp.addEventListener("click", (e) => { console.log('[SaveSystem] Export clicked'); e.stopPropagation(); this.exportSaveState(this.quickSaveSlot); });
+    if (exp) exp.addEventListener("click", (e) => { console.log('[SaveSystem] Export clicked'); e.stopPropagation(); this.debugLog('[SaveSystem] Export clicked'); this.exportSaveState(this.quickSaveSlot); });
     const impDock = document.getElementById("saveSystemImportDock");
-    if (impDock) impDock.addEventListener("click", (e) => { console.log('[SaveSystem] Import dock clicked'); e.stopPropagation(); this.triggerImportDialog(); });
+    if (impDock) impDock.addEventListener("click", (e) => { console.log('[SaveSystem] Import dock clicked'); e.stopPropagation(); this.debugLog('[SaveSystem] Import dock clicked'); this.triggerImportDialog(); });
     const openBtn = document.getElementById("saveSystemOpenButton");
-    if (openBtn) openBtn.addEventListener("click", (e) => { console.log('[SaveSystem] OpenMenu clicked'); e.stopPropagation(); this.openMenu(); });
+    if (openBtn) openBtn.addEventListener("click", (e) => { console.log('[SaveSystem] OpenMenu clicked'); e.stopPropagation(); this.debugLog('[SaveSystem] OpenMenu clicked'); this.openMenu(); });
     const importBtn = document.getElementById("saveSystemImportButton");
-    if (importBtn) importBtn.addEventListener("click", (e) => { console.log('[SaveSystem] Import button clicked'); e.stopPropagation(); this.triggerImportDialog(); });
+    if (importBtn) importBtn.addEventListener("click", (e) => { console.log('[SaveSystem] Import button clicked'); e.stopPropagation(); this.debugLog('[SaveSystem] Import button clicked'); this.triggerImportDialog(); });
     document.getElementById("saveSystemImportInput").addEventListener("change", (e) => this.handleImportInput(e));
     this.renderSlots();
+  }
+
+  debugLog(msg) {
+    try {
+      const el = document.getElementById('saveSystemDebugBadge');
+      if (el) el.textContent = msg;
+      console.log(msg);
+    } catch (e) { /* ignore */ }
   }
 
   injectStyles() {
@@ -222,6 +252,19 @@ class DeltaruneSaveSystem {
         box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
         backdrop-filter: blur(6px);
       }
+        #saveSystemDebugBadge {
+          position: fixed;
+          top: 8px;
+          right: 8px;
+          z-index: 2147483650;
+          background: rgba(0,0,0,0.75);
+          color: #cfe8ff;
+          padding: 6px 10px;
+          font-size: 12px;
+          border-radius: 8px;
+          border: 1px solid rgba(255,255,255,0.06);
+          pointer-events: none;
+        }
       .dock-button {
         width: 48px;
         height: 48px;
