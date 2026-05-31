@@ -98,8 +98,12 @@ class DeltaruneSaveSystem {
           <div>Alt+O = Open menu  ·  Alt+S = Save quick slot  ·  Alt+L = Load quick slot</div>
           <button id="saveSystemImportButton" class="footer-button">Import Save</button>
         </div>
+          <div class="save-system-quick-actions" id="saveSystemQuickActions">
+            <button id="saveSystemQuickSave" class="quick-action-button save">Quick Save</button>
+            <button id="saveSystemQuickLoad" class="quick-action-button load">Quick Load</button>
+            <button id="saveSystemOpenButton" class="save-system-open-button">Save Menu</button>
+          </div>
       </div>
-      <button id="saveSystemOpenButton" class="save-system-open-button">Save Menu</button>
       <input type="file" id="saveSystemImportInput" accept=".deltarune-save" style="display:none" />
     `;
     document.body.appendChild(container);
@@ -107,6 +111,8 @@ class DeltaruneSaveSystem {
     document.getElementById("saveSystemClose").addEventListener("click", () => this.closeMenu());
     document.getElementById("saveSystemOverlay").addEventListener("click", () => this.closeMenu());
     document.getElementById("saveSystemOpenButton").addEventListener("click", () => this.openMenu());
+    document.getElementById("saveSystemQuickSave").addEventListener("click", () => this.saveState(this.quickSaveSlot));
+    document.getElementById("saveSystemQuickLoad").addEventListener("click", () => this.loadState(this.quickSaveSlot));
     document.getElementById("saveSystemImportButton").addEventListener("click", () => this.triggerImportDialog());
     document.getElementById("saveSystemImportInput").addEventListener("change", (e) => this.handleImportInput(e));
     this.renderSlots();
@@ -172,6 +178,32 @@ class DeltaruneSaveSystem {
         overflow-y: auto;
         max-height: calc(82vh - 140px);
       }
+      .save-system-quick-actions {
+        position: fixed;
+        bottom: 18px;
+        right: 18px;
+        z-index: 9999;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 10px;
+        background: rgba(18, 18, 18, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+      }
+      .quick-action-button {
+        min-width: 98px;
+        padding: 10px 14px;
+        border: none;
+        border-radius: 999px;
+        cursor: pointer;
+        font-weight: 700;
+        color: #fff;
+      }
+      .quick-action-button.save { background: #1e88e5; }
+      .quick-action-button.load { background: #43a047; }
+      .save-system-open-button { background: #f6b93b; color: #121212; }
       .save-slot-card {
         background: #1f1f1f;
         border: 1px solid #333;
