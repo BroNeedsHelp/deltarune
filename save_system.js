@@ -588,6 +588,11 @@ class DeltaruneSaveSystem {
   }
 }
 
-window.addEventListener("load", () => {
+const initializeDeltaruneSaveSystem = () => {
   window.deltaruneSaveSystem = new DeltaruneSaveSystem();
-});
+};
+if (document.readyState === "complete" || document.readyState === "interactive") {
+  initializeDeltaruneSaveSystem();
+} else {
+  window.addEventListener("load", initializeDeltaruneSaveSystem);
+}
