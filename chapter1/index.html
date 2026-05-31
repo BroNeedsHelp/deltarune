@@ -1373,16 +1373,19 @@
 	<!-- Load Save System -->
     <script type="text/javascript">
       function getDeltaruneSaveSystemPath() {
-        const url = window.location.href;
-        const match = url.match(/(.*\/chapter\d+\/)/i);
-        if (match && match[1]) {
-          return match[1].replace(/chapter\d+\/$/i, "") + "save_system.js";
-        }
-        return "save_system.js";
+        return new URL("save_system.js", window.location.href).href;
       }
-      const saveSystemScript = document.createElement("script");
-      saveSystemScript.src = getDeltaruneSaveSystemPath();
-      document.body.appendChild(saveSystemScript);
+      function loadDeltaruneSaveSystem() {
+        const saveSystemScript = document.createElement("script");
+        saveSystemScript.async = false;
+        saveSystemScript.src = getDeltaruneSaveSystemPath();
+        document.body.appendChild(saveSystemScript);
+      }
+      if (document.readyState === "complete") {
+        loadDeltaruneSaveSystem();
+      } else {
+        window.addEventListener("load", loadDeltaruneSaveSystem);
+      }
     </script>
 	<!-- Load Main Game Runner JS File -->
     <script async type="text/javascript" src="runner.js"></script>

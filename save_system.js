@@ -143,13 +143,19 @@ class DeltaruneSaveSystem {
     const style = document.createElement("style");
     style.id = "saveSystemStyles";
     style.textContent = `
-      #deltarune-save-system { font-family: Arial, sans-serif; }
+      #deltarune-save-system {
+        font-family: Arial, sans-serif;
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 2147483647 !important;
+      }
       .save-system-overlay {
         position: fixed;
         inset: 0;
         background: rgba(0, 0, 0, 0.75);
         display: none;
-        z-index: 9998;
+        z-index: 2147483646;
       }
       .save-system-panel {
         position: fixed;
@@ -202,7 +208,8 @@ class DeltaruneSaveSystem {
         position: fixed;
         bottom: 18px;
         right: 18px;
-        z-index: 10001;
+        z-index: 2147483647;
+        pointer-events: auto;
         display: flex;
         flex-direction: column;
         gap: 10px;

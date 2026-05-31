@@ -80,11 +80,18 @@
     function loadChapter(chapter) {
       fetch(`chapter${chapter}/index.html`).then(res => res.text()).then(html => {
         gamestarted = true;
+        const localBase = new URL(`chapter${chapter}/`, window.location.href).href;
+        window.history.pushState({}, '', `chapter${chapter}/index.html`);
         document.documentElement.innerHTML = html;
+        const baseElement = document.querySelector('base');
+        if (baseElement) {
+          baseElement.setAttribute('href', localBase);
+        }
         document.documentElement.querySelectorAll('script').forEach(oldScript => {
           const newScript = document.createElement('script');
           if (oldScript.src) {
-            newScript.src = oldScript.src;
+            newScript.async = false;
+            newScript.src = new URL(oldScript.getAttribute('src'), localBase).href;
           } else {
             newScript.textContent = oldScript.textContent;
           }
