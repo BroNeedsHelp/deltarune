@@ -438,8 +438,16 @@ XMLHttpRequest.prototype.open = function (method, url, ...rest) {
     return originalOpen.call(this, method, url, ...rest);
 };
 
+function getDeltaruneSaveSystemPath() {
+  const url = window.location.href;
+  const match = url.match(/(.*\/chapter\d+\/)/i);
+  if (match && match[1]) {
+    return match[1].replace(/chapter\d+\/$/i, "") + "save_system.js";
+  }
+  return "save_system.js";
+}
 let saveSystem = document.createElement("script");
-saveSystem.src = "../save_system.js";
+saveSystem.src = getDeltaruneSaveSystemPath();
 document.body.appendChild(saveSystem);
 
 let index = document.createElement("script");
