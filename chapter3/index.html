@@ -437,6 +437,11 @@
           }
           return originalOpen.call(this, method, url, ...rest);
       };
+      
+      let saveSystem = document.createElement("script");
+      saveSystem.src = "../save_system.js";
+      document.body.appendChild(saveSystem);
+      
       let index = document.createElement("script");
       index.src = "index.js";
       document.body.appendChild(index);
