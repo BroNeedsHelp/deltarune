@@ -24,17 +24,75 @@ class DeltaruneSaveSystem {
     try {
       await this.initDB();
       this.createUI();
-      this.setupHotkeys();
-      this.waitForModule();
-      console.log("[SaveSystem] Initialized");
-    } catch (error) {
-      console.error("[SaveSystem] Initialization failed", error);
-    }
-  }
+      // Improved detection: wrap runtime hooks if present, watch property, and poll with backoff.
+      let interval = 200;
+      const maxInterval = 1000;
 
-  initDB() {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
+      const checkReady = () => {
+        if (window.Module && window.Module.HEAPU8) {
+          this.gameModule = window.Module;
+          this.isReady = true;
+          this.updateSaveListUI();
+          console.log("[SaveSystem] Game module ready");
+          try { this.debugLog('SaveSystem: ready'); } catch (e) { /* ignore */ }
+          return true;
+        }
+        return false;
+      };
+
+      const tryWrapRuntimeHooks = () => {
+        try {
+          const M = window.Module;
+          if (!M) return;
+          // Wrap onRuntimeInitialized if present
+          if (typeof M.onRuntimeInitialized === 'function' && !M.__saveSystemWrapped_onRuntime) {
+            const orig = M.onRuntimeInitialized;
+            M.onRuntimeInitialized = function() {
+              try { orig.apply(this, arguments); } catch (e) { console.error(e); }
+              try { if (window.deltaruneSaveSystem) window.deltaruneSaveSystem.debugLog('[SaveSystem] onRuntimeInitialized'); } catch (_) {}
+              try { if (window.deltaruneSaveSystem) window.deltaruneSaveSystem.waitForModule(); } catch (_) {}
+            };
+            M.__saveSystemWrapped_onRuntime = true;
+          }
+          // Wrap postRun array or function
+          if (Array.isArray(M.postRun) && !M.__saveSystemWrapped_postRun) {
+            M.postRun = M.postRun.concat(() => { try { if (window.deltaruneSaveSystem) window.deltaruneSaveSystem.debugLog('[SaveSystem] postRun'); } catch (_) {} });
+            M.__saveSystemWrapped_postRun = true;
+          } else if (typeof M.postRun === 'function' && !M.__saveSystemWrapped_postRun) {
+            const orig = M.postRun;
+            M.postRun = function() { try { orig.apply(this, arguments); } catch (e) { console.error(e); } try { if (window.deltaruneSaveSystem) window.deltaruneSaveSystem.debugLog('[SaveSystem] postRun'); } catch (_) {} };
+            M.__saveSystemWrapped_postRun = true;
+          }
+
+          // Try to watch HEAPU8 property being set (best-effort)
+          try {
+            const desc = Object.getOwnPropertyDescriptor(M, 'HEAPU8');
+            if ((!desc || desc.configurable) && !M.__saveSystemWatching_HEAPU8) {
+              let current = M.HEAPU8;
+              Object.defineProperty(M, 'HEAPU8', {
+                configurable: true,
+                enumerable: true,
+                get() { return current; },
+                set(v) { current = v; try { if (window.deltaruneSaveSystem) window.deltaruneSaveSystem.debugLog('[SaveSystem] HEAPU8 set'); } catch (_) {} }
+              });
+              M.__saveSystemWatching_HEAPU8 = true;
+            }
+          } catch (e) {
+            // ignore failures to redefine Module properties
+          }
+        } catch (e) {
+          // swallow
+        }
+      };
+
+      const poll = () => {
+        if (checkReady()) return;
+        tryWrapRuntimeHooks();
+        interval = Math.min(maxInterval, interval + 150);
+        setTimeout(poll, interval);
+      };
+
+      poll();
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         this.db = request.result;
@@ -502,10 +560,73 @@ class DeltaruneSaveSystem {
   }
 
   triggerImportDialog() {
-    const input = document.getElementById("saveSystemImportInput");
-    if (input) {
-      input.value = "";
-      input.click();
+    // Create a visible temporary file-picker modal so user interaction is obvious
+    try {
+      if (document.getElementById('saveSystemFileModal')) return;
+      const modal = document.createElement('div');
+      modal.id = 'saveSystemFileModal';
+      modal.style.position = 'fixed';
+      modal.style.left = '50%';
+      modal.style.top = '50%';
+      modal.style.transform = 'translate(-50%, -50%)';
+      modal.style.zIndex = 2147483660;
+      modal.style.background = 'rgba(18,18,18,0.98)';
+      modal.style.border = '1px solid rgba(255,255,255,0.06)';
+      modal.style.padding = '14px';
+      modal.style.borderRadius = '10px';
+      modal.style.display = 'flex';
+      modal.style.flexDirection = 'column';
+      modal.style.gap = '10px';
+
+      const title = document.createElement('div');
+      title.textContent = 'Import Save File';
+      title.style.color = '#e6eefb';
+      title.style.fontWeight = '700';
+      modal.appendChild(title);
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.deltarune-save,application/octet-stream';
+      fileInput.style.color = '#fff';
+      modal.appendChild(fileInput);
+
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.gap = '8px';
+
+      const cancel = document.createElement('button');
+      cancel.textContent = 'Cancel';
+      cancel.className = 'footer-button';
+      cancel.addEventListener('click', () => { if (modal.parentElement) modal.parentElement.removeChild(modal); });
+      row.appendChild(cancel);
+
+      const pick = document.createElement('button');
+      pick.textContent = 'Pick File';
+      pick.className = 'footer-button';
+      pick.addEventListener('click', () => fileInput.click());
+      row.appendChild(pick);
+
+      modal.appendChild(row);
+
+      fileInput.addEventListener('change', async (ev) => {
+        try {
+          console.log('[SaveSystem] Visible import input change event', ev);
+          await this.handleImportInput(ev);
+        } finally {
+          if (modal.parentElement) modal.parentElement.removeChild(modal);
+        }
+      });
+
+      document.body.appendChild(modal);
+      // focus the pick button for keyboard users
+      pick.focus();
+    } catch (e) {
+      // fallback to hidden input
+      const input = document.getElementById("saveSystemImportInput");
+      if (input) {
+        input.value = "";
+        input.click();
+      }
     }
   }
 
