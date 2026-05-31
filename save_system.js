@@ -140,9 +140,10 @@ class DeltaruneSaveSystem {
   }
 
   createUI() {
-    const container = document.createElement("div");
-    container.id = "deltarune-save-system";
-    container.innerHTML = `
+    try {
+      const container = document.createElement("div");
+      container.id = "deltarune-save-system";
+      container.innerHTML = `
       <div class="save-system-overlay" id="saveSystemOverlay"></div>
       <div class="save-system-panel" id="saveSystemPanel">
         <div class="save-system-header">
@@ -223,6 +224,11 @@ class DeltaruneSaveSystem {
     if (importBtn) importBtn.addEventListener("click", (e) => { console.log('[SaveSystem] Import button clicked'); e.stopPropagation(); this.debugLog('[SaveSystem] Import button clicked'); this.triggerImportDialog(); });
     document.getElementById("saveSystemImportInput").addEventListener("change", (e) => this.handleImportInput(e));
     this.renderSlots();
+    } catch (e) {
+      console.error('[SaveSystem] createUI failed', e);
+      try { if (typeof document !== 'undefined' && document.body) { const dbg = document.createElement('div'); dbg.id='saveSystemDebugBadge'; dbg.textContent='SaveSystem: ui-failed'; document.body.appendChild(dbg); } } catch (_) {}
+      return;
+    }
   }
 
   debugLog(msg) {
@@ -798,7 +804,7 @@ if (!window.__saveSystemGlobalErrorHandlerAdded) {
   });
   window.__saveSystemGlobalErrorHandlerAdded = true;
 }
-if (document.readyState === "complete" || document.readyState === "interactive") {
+if (document.readyState === "complete") {
   initializeDeltaruneSaveSystem();
 } else {
   window.addEventListener("load", initializeDeltaruneSaveSystem);
