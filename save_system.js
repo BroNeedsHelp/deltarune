@@ -56,6 +56,7 @@ class DeltaruneSaveSystem {
         this.isReady = true;
         this.updateSaveListUI();
         console.log("[SaveSystem] Game module ready");
+        try { this.debugLog('SaveSystem: ready'); } catch(e) { /* ignore */ }
       } else {
         setTimeout(tryReady, 300);
       }
@@ -102,18 +103,23 @@ class DeltaruneSaveSystem {
         <div class="save-system-dock" id="saveSystemDock" aria-hidden="false">
           <button id="saveSystemQuickSave" class="dock-button" title="Quick Save">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 3h14v14H5z" stroke="#fff" stroke-width="1.2" fill="#1e88e5"/><path d="M7 7h10v6H7z" fill="#fff"/></svg>
+            <div class="dock-label">Save</div>
           </button>
           <button id="saveSystemQuickLoad" class="dock-button" title="Quick Load">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 21H5a2 2 0 0 1-2-2V7" stroke="#fff" stroke-width="1.2" fill="#43a047"/><path d="M7 9l5 5 5-5" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div class="dock-label">Load</div>
           </button>
           <button id="saveSystemExport" class="dock-button" title="Export Save">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3v12" stroke="#121212" stroke-width="1.6" stroke-linecap="round"/><path d="M8 7l4-4 4 4" stroke="#121212" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="15" width="18" height="6" rx="2" fill="#f0a500"/></svg>
+            <div class="dock-label">Export</div>
           </button>
           <button id="saveSystemImportDock" class="dock-button" title="Import Save">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 21V9" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M8 13l4 4 4-4" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="3" width="18" height="6" rx="2" fill="#1565c0"/></svg>
+            <div class="dock-label">Import</div>
           </button>
           <button id="saveSystemOpenButton" class="dock-button" title="Open Save Menu">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="8" r="3" fill="#f6b93b"/><path d="M5 20c1.5-4 4.5-6 7-6s5.5 2 7 6" stroke="#f6b93b" stroke-width="1.2" stroke-linecap="round"/></svg>
+            <div class="dock-label">Menu</div>
           </button>
         </div>
         <input type="file" id="saveSystemImportInput" accept=".deltarune-save" style="display:none" />
@@ -184,31 +190,30 @@ class DeltaruneSaveSystem {
       .save-system-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.75);
+        background: rgba(0, 0, 0, 0.35);
         display: none;
         z-index: 2147483646;
+        pointer-events: none; /* allow interaction with game while panel is open */
       }
       .save-system-panel {
         position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: min(90vw, 860px);
-        max-height: 82vh;
+        right: 18px;
+        top: 8vh;
+        transform: none;
+        width: 360px;
+        height: 84vh;
         background: #121212;
         border: 2px solid #1a73e8;
         border-radius: 12px;
-        padding: 16px;
-        box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
+        padding: 12px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
         display: none;
-        z-index: 9999;
-        overflow: hidden;
+        z-index: 2147483651;
+        overflow: auto;
         color: #e0e0e0;
       }
-      .save-system-panel.active,
-      .save-system-overlay.active {
-        display: block;
-      }
+      .save-system-panel.active { display: block; }
+      .save-system-overlay.active { display: block; }
       .save-system-header {
         display: flex;
         justify-content: space-between;
@@ -252,6 +257,8 @@ class DeltaruneSaveSystem {
         box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
         backdrop-filter: blur(6px);
       }
+      .dock-label { font-size: 11px; margin-top: 6px; color: #e6eefb; text-align: center; }
+      .dock-button { flex-direction: column; }
         #saveSystemDebugBadge {
           position: fixed;
           top: 8px;
