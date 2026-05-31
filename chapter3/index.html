@@ -439,12 +439,21 @@
       };
       
       function getDeltaruneSaveSystemPath() {
-        return new URL("save_system.js", window.location.href).href;
+        const url = new URL(window.location.href);
+        const parts = url.pathname.split("/").filter(Boolean);
+        const chapterIndex = parts.findIndex((part) => /^chapter\d+$/i.test(part));
+        if (chapterIndex >= 0) {
+          parts.splice(chapterIndex);
+        }
+        url.pathname = "/" + parts.join("/") + (parts.length ? "/" : "");
+        return url.origin + url.pathname + "save_system.js";
       }
       function loadDeltaruneSaveSystem() {
         const saveSystem = document.createElement("script");
         saveSystem.async = false;
         saveSystem.src = getDeltaruneSaveSystemPath();
+        saveSystem.onload = () => console.log("save_system.js loaded", saveSystem.src);
+        saveSystem.onerror = () => console.error("save_system.js failed to load", saveSystem.src);
         document.body.appendChild(saveSystem);
       }
       
@@ -452,11 +461,15 @@
       index.src = "index.js";
       document.body.appendChild(index);
       
-      if (document.readyState === "complete") {
-        setTimeout(loadDeltaruneSaveSystem, 0);
-      } else {
-        window.addEventListener("load", loadDeltaruneSaveSystem);
+      function scheduleSaveSystemLoad() {
+        if (document.readyState === "complete" || document.readyState === "interactive") {
+          setTimeout(loadDeltaruneSaveSystem, 50);
+        } else {
+          window.addEventListener("DOMContentLoaded", () => setTimeout(loadDeltaruneSaveSystem, 50));
+          window.addEventListener("load", () => setTimeout(loadDeltaruneSaveSystem, 50));
+        }
       }
+      scheduleSaveSystemLoad();
 
       let runner = document.createElement("script");
       runner.src = "runner.js";
