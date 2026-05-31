@@ -95,24 +95,44 @@ class DeltaruneSaveSystem {
         </div>
         <div class="save-system-body" id="saveSystemBody"></div>
         <div class="save-system-footer">
-          <div>Alt+O = Open menu  ·  Alt+S = Save quick slot  ·  Alt+L = Load quick slot</div>
-          <button id="saveSystemImportButton" class="footer-button">Import Save</button>
-        </div>
-          <div class="save-system-quick-actions" id="saveSystemQuickActions">
-            <button id="saveSystemQuickSave" class="quick-action-button save">Quick Save</button>
-            <button id="saveSystemQuickLoad" class="quick-action-button load">Quick Load</button>
-            <button id="saveSystemOpenButton" class="save-system-open-button">Save Menu</button>
+            <div>Alt+O = Open menu  ·  Alt+S = Save quick slot  ·  Alt+L = Load quick slot</div>
+            <button id="saveSystemImportButton" class="footer-button">Import Save</button>
           </div>
-      </div>
-      <input type="file" id="saveSystemImportInput" accept=".deltarune-save" style="display:none" />
+        </div>
+        <div class="save-system-dock" id="saveSystemDock" aria-hidden="false">
+          <button id="saveSystemQuickSave" class="dock-button" title="Quick Save">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 3h14v14H5z" stroke="#fff" stroke-width="1.2" fill="#1e88e5"/><path d="M7 7h10v6H7z" fill="#fff"/></svg>
+          </button>
+          <button id="saveSystemQuickLoad" class="dock-button" title="Quick Load">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 21H5a2 2 0 0 1-2-2V7" stroke="#fff" stroke-width="1.2" fill="#43a047"/><path d="M7 9l5 5 5-5" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button id="saveSystemExport" class="dock-button" title="Export Save">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3v12" stroke="#121212" stroke-width="1.6" stroke-linecap="round"/><path d="M8 7l4-4 4 4" stroke="#121212" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="15" width="18" height="6" rx="2" fill="#f0a500"/></svg>
+          </button>
+          <button id="saveSystemImportDock" class="dock-button" title="Import Save">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 21V9" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M8 13l4 4 4-4" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="3" width="18" height="6" rx="2" fill="#1565c0"/></svg>
+          </button>
+          <button id="saveSystemOpenButton" class="dock-button" title="Open Save Menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="8" r="3" fill="#f6b93b"/><path d="M5 20c1.5-4 4.5-6 7-6s5.5 2 7 6" stroke="#f6b93b" stroke-width="1.2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <input type="file" id="saveSystemImportInput" accept=".deltarune-save" style="display:none" />
     `;
     document.body.appendChild(container);
     this.injectStyles();
     document.getElementById("saveSystemClose").addEventListener("click", () => this.closeMenu());
     document.getElementById("saveSystemOverlay").addEventListener("click", () => this.closeMenu());
-    document.getElementById("saveSystemOpenButton").addEventListener("click", () => this.openMenu());
-    document.getElementById("saveSystemQuickSave").addEventListener("click", () => this.saveState(this.quickSaveSlot));
-    document.getElementById("saveSystemQuickLoad").addEventListener("click", () => this.loadState(this.quickSaveSlot));
+    // Dock button handlers
+    const qs = document.getElementById("saveSystemQuickSave");
+    if (qs) qs.addEventListener("click", () => this.saveState(this.quickSaveSlot));
+    const ql = document.getElementById("saveSystemQuickLoad");
+    if (ql) ql.addEventListener("click", () => this.loadState(this.quickSaveSlot));
+    const exp = document.getElementById("saveSystemExport");
+    if (exp) exp.addEventListener("click", () => this.exportSaveState(this.quickSaveSlot));
+    const impDock = document.getElementById("saveSystemImportDock");
+    if (impDock) impDock.addEventListener("click", () => this.triggerImportDialog());
+    const openBtn = document.getElementById("saveSystemOpenButton");
+    if (openBtn) openBtn.addEventListener("click", () => this.openMenu());
     document.getElementById("saveSystemImportButton").addEventListener("click", () => this.triggerImportDialog());
     document.getElementById("saveSystemImportInput").addEventListener("change", (e) => this.handleImportInput(e));
     this.renderSlots();
@@ -178,32 +198,36 @@ class DeltaruneSaveSystem {
         overflow-y: auto;
         max-height: calc(82vh - 140px);
       }
-      .save-system-quick-actions {
+      .save-system-dock {
         position: fixed;
         bottom: 18px;
         right: 18px;
-        z-index: 9999;
+        z-index: 10001;
         display: flex;
+        flex-direction: column;
         gap: 10px;
         align-items: center;
-        padding: 10px;
-        background: rgba(18, 18, 18, 0.92);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 999px;
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+        padding: 8px;
+        background: rgba(18, 18, 18, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 14px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(6px);
       }
-      .quick-action-button {
-        min-width: 98px;
-        padding: 10px 14px;
+      .dock-button {
+        width: 48px;
+        height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
         border: none;
-        border-radius: 999px;
         cursor: pointer;
-        font-weight: 700;
-        color: #fff;
+        background: transparent;
+        padding: 6px;
       }
-      .quick-action-button.save { background: #1e88e5; }
-      .quick-action-button.load { background: #43a047; }
-      .save-system-open-button { background: #f6b93b; color: #121212; }
+      .dock-button svg { width: 24px; height: 24px; }
+      #saveSystemDock .dock-button:hover { transform: translateY(-2px); transition: transform 0.12s ease; }
       .save-slot-card {
         background: #1f1f1f;
         border: 1px solid #333;

@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Save System Test</title>
+  <style>
+    body { background: #111; color: #eee; font-family: Arial, sans-serif; padding: 24px; }
+    #log { white-space: pre-wrap; background:#000; color:#0f0; padding:12px; border-radius:6px; height:300px; overflow:auto }
+    button { margin-right:8px; padding:8px 12px; }
+  </style>
+</head>
+<body>
+  <h2>Save System Quick Test</h2>
+  <div>
+    <button id="doQuickSave">Quick Save (slot 1)</button>
+    <button id="doQuickLoad">Quick Load (slot 1)</button>
+    <button id="dumpSlot">Dump Slot 1</button>
+    <button id="clearDB">Clear DB</button>
+  </div>
+  <h3>Console Log</h3>
+  <div id="log">starting...</div>
+
+  <script>
+    function log(...args) { const el = document.getElementById('log'); el.textContent += '\n' + args.map(a=>typeof a==='object'?JSON.stringify(a,null,2):String(a)).join(' '); el.scrollTop = el.scrollHeight; }
+
+    // Stub a Module with HEAPU8 to simulate Emscripten memory
+    window.Module = window.Module || {};
+    window.Module.HEAPU8 = new Uint8Array(1024 * 1024); // 1MB fake memory
+    // Put some recognizable bytes so we can detect restore
+    for (let i=0;i<64;i++) window.Module.HEAPU8[i] = i & 0xff;
+  </script>
+
+  <script src="/save_system.js"></script>
+  <script>
+    window.addEventListener('load', async () => {
+      log('window.load - save system should initialize');
+      // wait until the save system sets isReady
+      const waitReady = () => new Promise(resolve => {
+        const start = Date.now();
+        (function check(){
+          if (window.deltaruneSaveSystem && window.deltaruneSaveSystem.isReady) return resolve(true);
+          if (Date.now()-start>5000) return resolve(false);
+          setTimeout(check, 200);
+        })();
+      });
+      const ok = await waitReady();
+      log('saveSystem ready:', ok);
+
+      document.getElementById('doQuickSave').addEventListener('click', async () => {
+        try {
+          await window.deltaruneSaveSystem.saveState(0);
+          log('Quick save done');
+        } catch (e) { log('save error', e.message); }
+      });
+
+      document.getElementById('doQuickLoad').addEventListener('click', async () => {
+        try {
+          await window.deltaruneSaveSystem.loadState(0);
+          log('Quick load done');
+          // verify memory first 16 bytes
+          log('Module.HEAPU8[0..16]:', Array.from(window.Module.HEAPU8.slice(0,16)));
+        } catch (e) { log('load error', e.message); }
+      });
+
+      document.getElementById('dumpSlot').addEventListener('click', async () => {
+        const s = await window.deltaruneSaveSystem.getSaveState(0);
+        log('slot0:', s?{slot:s.slot, timestamp:s.timestamp, sizeBytes:s.sizeBytes}:{empty:true});
+      });
+
+      document.getElementById('clearDB').addEventListener('click', async () => {
+        // remove all records
+        const req = indexedDB.open('DeltaruneSaveStates');
+        req.onsuccess = () => {
+          const db = req.result;
+          const tx = db.transaction(['saveStates'],'readwrite');
+          const store = tx.objectStore('saveStates');
+          const clearReq = store.clear();
+          clearReq.onsuccess = () => log('DB cleared');
+        };
+        req.onerror = () => log('DB open error');
+      });
+
+      log('Test UI ready');
+    });
+  </script>
+</body>
+</html>
