@@ -24,75 +24,16 @@ class DeltaruneSaveSystem {
     try {
       await this.initDB();
       this.createUI();
-      // Improved detection: wrap runtime hooks if present, watch property, and poll with backoff.
-      let interval = 200;
-      const maxInterval = 1000;
+      this.waitForModule();
+      console.log("[SaveSystem] Initialized");
+    } catch (error) {
+      console.error("[SaveSystem] Initialization failed", error);
+    }
+  }
 
-      const checkReady = () => {
-        if (window.Module && window.Module.HEAPU8) {
-          this.gameModule = window.Module;
-          this.isReady = true;
-          this.updateSaveListUI();
-          console.log("[SaveSystem] Game module ready");
-          try { this.debugLog('SaveSystem: ready'); } catch (e) { /* ignore */ }
-          return true;
-        }
-        return false;
-      };
-
-      const tryWrapRuntimeHooks = () => {
-        try {
-          const M = window.Module;
-          if (!M) return;
-          // Wrap onRuntimeInitialized if present
-          if (typeof M.onRuntimeInitialized === 'function' && !M.__saveSystemWrapped_onRuntime) {
-            const orig = M.onRuntimeInitialized;
-            M.onRuntimeInitialized = function() {
-              try { orig.apply(this, arguments); } catch (e) { console.error(e); }
-              try { if (window.deltaruneSaveSystem) window.deltaruneSaveSystem.debugLog('[SaveSystem] onRuntimeInitialized'); } catch (_) {}
-              try { if (window.deltaruneSaveSystem) window.deltaruneSaveSystem.waitForModule(); } catch (_) {}
-            };
-            M.__saveSystemWrapped_onRuntime = true;
-          }
-          // Wrap postRun array or function
-          if (Array.isArray(M.postRun) && !M.__saveSystemWrapped_postRun) {
-            M.postRun = M.postRun.concat(() => { try { if (window.deltaruneSaveSystem) window.deltaruneSaveSystem.debugLog('[SaveSystem] postRun'); } catch (_) {} });
-            M.__saveSystemWrapped_postRun = true;
-          } else if (typeof M.postRun === 'function' && !M.__saveSystemWrapped_postRun) {
-            const orig = M.postRun;
-            M.postRun = function() { try { orig.apply(this, arguments); } catch (e) { console.error(e); } try { if (window.deltaruneSaveSystem) window.deltaruneSaveSystem.debugLog('[SaveSystem] postRun'); } catch (_) {} };
-            M.__saveSystemWrapped_postRun = true;
-          }
-
-          // Try to watch HEAPU8 property being set (best-effort)
-          try {
-            const desc = Object.getOwnPropertyDescriptor(M, 'HEAPU8');
-            if ((!desc || desc.configurable) && !M.__saveSystemWatching_HEAPU8) {
-              let current = M.HEAPU8;
-              Object.defineProperty(M, 'HEAPU8', {
-                configurable: true,
-                enumerable: true,
-                get() { return current; },
-                set(v) { current = v; try { if (window.deltaruneSaveSystem) window.deltaruneSaveSystem.debugLog('[SaveSystem] HEAPU8 set'); } catch (_) {} }
-              });
-              M.__saveSystemWatching_HEAPU8 = true;
-            }
-          } catch (e) {
-            // ignore failures to redefine Module properties
-          }
-        } catch (e) {
-          // swallow
-        }
-      };
-
-      const poll = () => {
-        if (checkReady()) return;
-        tryWrapRuntimeHooks();
-        interval = Math.min(maxInterval, interval + 150);
-        setTimeout(poll, interval);
-      };
-
-      poll();
+  initDB() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         this.db = request.result;
@@ -123,8 +64,50 @@ class DeltaruneSaveSystem {
       return false;
     };
 
+    const tryWrapRuntimeHooks = () => {
+      try {
+        const M = window.Module;
+        if (!M) return;
+        if (typeof M.onRuntimeInitialized === 'function' && !M.__saveSystemWrapped_onRuntime) {
+          const orig = M.onRuntimeInitialized;
+          M.onRuntimeInitialized = function() {
+            try { orig.apply(this, arguments); } catch (e) { console.error(e); }
+            try { if (window.deltaruneSaveSystem) window.deltaruneSaveSystem.debugLog('[SaveSystem] onRuntimeInitialized'); } catch (_) {}
+            try { if (window.deltaruneSaveSystem) window.deltaruneSaveSystem.waitForModule(); } catch (_) {}
+          };
+          M.__saveSystemWrapped_onRuntime = true;
+        }
+        if (Array.isArray(M.postRun) && !M.__saveSystemWrapped_postRun) {
+          M.postRun = M.postRun.concat(() => { try { if (window.deltaruneSaveSystem) window.deltaruneSaveSystem.debugLog('[SaveSystem] postRun'); } catch (_) {} });
+          M.__saveSystemWrapped_postRun = true;
+        } else if (typeof M.postRun === 'function' && !M.__saveSystemWrapped_postRun) {
+          const orig = M.postRun;
+          M.postRun = function() { try { orig.apply(this, arguments); } catch (e) { console.error(e); } try { if (window.deltaruneSaveSystem) window.deltaruneSaveSystem.debugLog('[SaveSystem] postRun'); } catch (_) {} };
+          M.__saveSystemWrapped_postRun = true;
+        }
+        try {
+          const desc = Object.getOwnPropertyDescriptor(M, 'HEAPU8');
+          if ((!desc || desc.configurable) && !M.__saveSystemWatching_HEAPU8) {
+            let current = M.HEAPU8;
+            Object.defineProperty(M, 'HEAPU8', {
+              configurable: true,
+              enumerable: true,
+              get() { return current; },
+              set(v) { current = v; try { if (window.deltaruneSaveSystem) window.deltaruneSaveSystem.debugLog('[SaveSystem] HEAPU8 set'); } catch (_) {} }
+            });
+            M.__saveSystemWatching_HEAPU8 = true;
+          }
+        } catch (e) {
+          // ignore failures to redefine Module properties
+        }
+      } catch (e) {
+        // swallow
+      }
+    };
+
     const poll = () => {
       if (checkReady()) return;
+      tryWrapRuntimeHooks();
       interval = Math.min(maxInterval, interval + 150);
       setTimeout(poll, interval);
     };
