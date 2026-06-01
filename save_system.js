@@ -108,18 +108,28 @@ class DeltaruneSaveSystem {
   }
 
   waitForModule() {
-    const tryReady = () => {
+    let interval = 200;
+    const maxInterval = 1000;
+
+    const checkReady = () => {
       if (window.Module && window.Module.HEAPU8) {
         this.gameModule = window.Module;
         this.isReady = true;
         this.updateSaveListUI();
         console.log("[SaveSystem] Game module ready");
-        try { this.debugLog('SaveSystem: ready'); } catch(e) { /* ignore */ }
-      } else {
-        setTimeout(tryReady, 300);
+        try { this.debugLog('SaveSystem: ready'); } catch (e) { /* ignore */ }
+        return true;
       }
+      return false;
     };
-    tryReady();
+
+    const poll = () => {
+      if (checkReady()) return;
+      interval = Math.min(maxInterval, interval + 150);
+      setTimeout(poll, interval);
+    };
+
+    poll();
   }
 
   setupHotkeys() {
