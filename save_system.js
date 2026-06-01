@@ -311,37 +311,64 @@
       }
     }
 
-    importSlot(slot) {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.deltarune-save';
-      input.addEventListener('change', async (event) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-        const parsed = await this.parseSaveFile(file);
-        if (!parsed) {
-          this.showToast('Invalid save file', 'error');
-          return;
-        }
+    async importSlot(slot) {
+      this.showToast('Importing...');
+      let file = null;
+
+      // Prefer File System Access API when available
+      if (window.showOpenFilePicker) {
         try {
-          const copy = new Uint8Array(parsed.memory.byteLength);
-          copy.set(new Uint8Array(parsed.memory));
-          await this.putState({
-            id: `${this.currentChapter}_slot_${slot}`,
-            slot,
-            chapter: this.currentChapter,
-            timestamp: new Date().toISOString(),
-            sizeBytes: copy.byteLength,
-            memory: copy.buffer,
+          const [handle] = await window.showOpenFilePicker({
+            multiple: false,
+            types: [{ description: 'Deltarune save', accept: { 'application/octet-stream': ['.deltarune-save'] } }],
           });
-          this.showToast(`Imported slot ${slot + 1}`);
-          this.refreshSlotMeta();
-        } catch (error) {
-          console.error('Import failed', error);
-          this.showToast('Import failed', 'error');
+          file = await handle.getFile();
+        } catch (err) {
+          // User cancelled or not allowed; fallback to input
+          file = null;
         }
-      });
-      input.click();
+      }
+
+      if (!file) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.deltarune-save,application/octet-stream';
+        input.multiple = false;
+        const filePromise = new Promise((resolve) => {
+          input.addEventListener('change', (event) => resolve(event.target.files?.[0] || null));
+        });
+        input.click();
+        file = await filePromise;
+      }
+
+      if (!file) {
+        this.showToast('Import canceled', 'error');
+        return;
+      }
+
+      const parsed = await this.parseSaveFile(file);
+      if (!parsed) {
+        this.showToast('Invalid save file', 'error');
+        return;
+      }
+
+      try {
+        const copy = new Uint8Array(parsed.memory.byteLength);
+        copy.set(new Uint8Array(parsed.memory));
+        await this.putState({
+          id: `${this.currentChapter}_slot_${slot}`,
+          slot,
+          chapter: this.currentChapter,
+          timestamp: new Date().toISOString(),
+          sizeBytes: copy.byteLength,
+          memory: copy.buffer,
+        });
+        this.showToast(`Imported slot ${slot + 1}`);
+        this.refreshSlotMeta();
+      } catch (error) {
+        console.error('Import failed', error);
+        this.showToast('Import failed', 'error');
+      }
     }
 
     parseSaveFile(file) {
