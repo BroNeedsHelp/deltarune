@@ -274,14 +274,14 @@
         out.set(new Uint8Array(headerBytes.buffer), 4);
         out.set(new Uint8Array(memoryBuf), 4 + headerBytes.byteLength);
 
-        const suggestedName = `${this.currentChapter}_slot${slot + 1}.save`;
+        const suggestedName = `${this.currentChapter}_slot${slot + 1}.deltarune-save`;
 
         // Prefer File System Access API when available (Chrome/Chromium, ChromeOS)
         if (window.showSaveFilePicker) {
           try {
             const handle = await window.showSaveFilePicker({
               suggestedName,
-              // Use a simple extension token acceptable to the picker
+              // Use a safe extension pattern in the picker, while the suggested filename remains descriptive.
               types: [{ description: 'Deltarune save', accept: { 'application/octet-stream': ['.save'] } }],
             });
             const writable = await handle.createWritable();
@@ -316,17 +316,17 @@
     async importSlot(slot) {
       this.showToast('Importing...');
       let file = null;
+      const safeAccept = ['.deltarune-save', '.save', 'application/octet-stream'];
 
-      // Prefer File System Access API when available
       if (window.showOpenFilePicker) {
         try {
           const [handle] = await window.showOpenFilePicker({
             multiple: false,
-            types: [{ description: 'Deltarune save', accept: { 'application/octet-stream': ['.deltarune-save'] } }],
+            types: [{ description: 'Deltarune save', accept: { 'application/octet-stream': ['.deltarune-save', '.save'] } }],
           });
           file = await handle.getFile();
         } catch (err) {
-          // User cancelled or not allowed; fallback to input
+          console.warn('SaveSystem: open file picker failed, falling back to file input', err);
           file = null;
         }
       }
@@ -334,13 +334,22 @@
       if (!file) {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = '.deltarune-save,application/octet-stream';
+        input.accept = safeAccept.join(',');
         input.multiple = false;
-        const filePromise = new Promise((resolve) => {
-          input.addEventListener('change', (event) => resolve(event.target.files?.[0] || null));
+        input.style.position = 'fixed';
+        input.style.left = '-9999px';
+        input.style.top = '-9999px';
+        document.body.appendChild(input);
+
+        file = await new Promise((resolve) => {
+          input.addEventListener('change', (event) => {
+            resolve(event.target.files?.[0] || null);
+          }, { once: true });
+          input.addEventListener('cancel', () => resolve(null), { once: true });
+          input.click();
         });
-        input.click();
-        file = await filePromise;
+
+        document.body.removeChild(input);
       }
 
       if (!file) {
