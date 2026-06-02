@@ -336,16 +336,34 @@
         input.type = 'file';
         input.accept = safeAccept.join(',');
         input.multiple = false;
-        input.style.position = 'fixed';
-        input.style.left = '-9999px';
-        input.style.top = '-9999px';
+        input.style.display = 'none';
         document.body.appendChild(input);
 
         file = await new Promise((resolve) => {
-          input.addEventListener('change', (event) => {
+          let onChange = null;
+          let onFocus = null;
+
+          const cleanup = () => {
+            if (onChange) input.removeEventListener('change', onChange);
+            if (onFocus) window.removeEventListener('focus', onFocus);
+          };
+
+          onChange = (event) => {
+            cleanup();
             resolve(event.target.files?.[0] || null);
-          }, { once: true });
-          input.addEventListener('cancel', () => resolve(null), { once: true });
+          };
+
+          onFocus = () => {
+            window.requestAnimationFrame(() => {
+              if (!input.files?.length) {
+                cleanup();
+                resolve(null);
+              }
+            });
+          };
+
+          input.addEventListener('change', onChange, { once: true });
+          window.addEventListener('focus', onFocus, { once: true });
           input.click();
         });
 
