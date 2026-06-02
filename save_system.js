@@ -329,10 +329,7 @@
 
       if (window.showOpenFilePicker) {
         try {
-          const [handle] = await window.showOpenFilePicker({
-            multiple: false,
-            types: [{ description: 'Deltarune save', accept: { 'application/octet-stream': ['.deltarune-save', '.save'] } }],
-          });
+          const [handle] = await window.showOpenFilePicker({ multiple: false });
           file = await handle.getFile();
         } catch (err) {
           console.warn('SaveSystem: open file picker failed, falling back to file input', err);
@@ -399,15 +396,23 @@
       try {
         const copy = new Uint8Array(parsed.memory.byteLength);
         copy.set(new Uint8Array(parsed.memory));
+        const importedBuffer = copy.buffer;
         await this.putState({
           id: `${this.currentChapter}_slot_${slot}`,
           slot,
           chapter: this.currentChapter,
           timestamp: new Date().toISOString(),
           sizeBytes: copy.byteLength,
-          memory: copy.buffer,
+          memory: importedBuffer,
         });
-        this.setImportStatus(`Imported slot ${slot + 1} successfully`, 'success');
+        const stored = await this.getState(slot);
+        console.log('SaveSystem importSlot stored state', stored);
+        if (this.moduleReady) {
+          this.restoreMemory(importedBuffer);
+          this.setImportStatus(`Imported and loaded slot ${slot + 1} successfully`, 'success');
+        } else {
+          this.setImportStatus(`Imported slot ${slot + 1} successfully`, 'success');
+        }
         this.showToast(`Imported slot ${slot + 1}`);
         this.refreshSlotMeta();
       } catch (error) {
