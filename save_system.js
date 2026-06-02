@@ -115,6 +115,9 @@
         .deltarune-save-dock { position:fixed; bottom:16px; right:16px; display:flex; flex-direction:column; gap:10px; z-index:2147483647; }
         .deltarune-save-dock button { width:46px; height:46px; border:none; border-radius:14px; background:rgba(255,255,255,0.08); color:#eef2ff; cursor:pointer; font-size:18px; }
         .deltarune-toast { position:fixed; right:16px; bottom:16px; background:rgba(15,23,42,0.96); color:#e2e8f0; padding:10px 14px; border-radius:12px; box-shadow:0 18px 48px rgba(0,0,0,0.35); opacity:0; transition:opacity .16s ease; z-index:2147483648; }
+        .deltarune-import-status { padding: 10px 14px; font-size: 12px; color: #cbd5e1; border-top: 1px solid rgba(255,255,255,0.08); background: rgba(15,23,42,0.92); }
+        .deltarune-import-status.error { color:#fecaca; }
+        .deltarune-import-status.success { color:#86efac; }
       `;
       document.head.appendChild(style);
 
@@ -124,13 +127,18 @@
         <section class="deltarune-save-panel" id="deltaruneSavePanel">
           <header>
             <h3>Save Manager • ${this.currentChapter}</h3>
-            <button id="deltaruneSaveClose">×</button>
+            <div>
+              <button id="deltaruneImportDebug" title="Show import debug info">🐞</button>
+              <button id="deltaruneSaveClose">×</button>
+            </div>
           </header>
+          <div class="deltarune-import-status" id="deltaruneImportStatus">Import status: ready</div>
           <div class="deltarune-save-slots" id="deltaruneSaveSlots"></div>
         </section>
       `;
       document.body.appendChild(root);
       document.getElementById('deltaruneSaveClose').addEventListener('click', () => this.togglePanel());
+      document.getElementById('deltaruneImportDebug').addEventListener('click', () => this.showImportDebugInfo());
 
       const dock = document.createElement('div');
       dock.className = 'deltarune-save-dock';
@@ -355,12 +363,12 @@
           };
 
           onFocus = () => {
-            window.requestAnimationFrame(() => {
+            setTimeout(() => {
               if (!input.files?.length) {
                 cleanup();
                 resolve(null);
               }
-            });
+            }, 200);
           };
 
           input.addEventListener('change', onChange, { once: true });
@@ -373,6 +381,7 @@
 
       console.log('SaveSystem importSlot selected file', file && { name: file.name, size: file.size, type: file.type });
       if (!file) {
+        this.setImportStatus('Import canceled or no file selected', 'error');
         this.showToast('Import canceled', 'error');
         return;
       }
@@ -380,9 +389,11 @@
       const parsed = await this.parseSaveFile(file);
       if (!parsed) {
         console.warn('SaveSystem importSlot parse failed', file);
+        this.setImportStatus('Import error: invalid save file format', 'error');
         this.showToast('Invalid save file', 'error');
         return;
       }
+      this.setImportStatus(`File parsed, metadata loaded for slot ${slot + 1}`, 'success');
       console.log('SaveSystem importSlot parsed metadata', parsed.metadata);
 
       try {
@@ -396,10 +407,12 @@
           sizeBytes: copy.byteLength,
           memory: copy.buffer,
         });
+        this.setImportStatus(`Imported slot ${slot + 1} successfully`, 'success');
         this.showToast(`Imported slot ${slot + 1}`);
         this.refreshSlotMeta();
       } catch (error) {
         console.error('Import failed', error);
+        this.setImportStatus('Import failed: see console logs', 'error');
         this.showToast('Import failed', 'error');
       }
     }
@@ -483,6 +496,22 @@
           if (meta) meta.textContent = 'Error';
         });
       }
+    }
+
+    setImportStatus(message, type = 'info') {
+      const status = document.getElementById('deltaruneImportStatus');
+      if (!status) return;
+      status.textContent = message;
+      status.className = `deltarune-import-status ${type}`;
+    }
+
+    showImportDebugInfo() {
+      const debugMessage = 'Import debug: open DevTools and run window.deltaruneSaveSystem.importSlot(0) or inspect console logs.';
+      this.setImportStatus(debugMessage, 'info');
+      console.log('DeltaruneSaveSystem debug: use the following to test import directly:');
+      console.log('  window.deltaruneSaveSystem.importSlot(0);');
+      console.log('You can also inspect parseSaveFile and putState with:');
+      console.log('  window.deltaruneSaveSystem.parseSaveFile(file).then(console.log);');
     }
 
     showToast(message, type = 'success') {
