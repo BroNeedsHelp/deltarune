@@ -274,14 +274,15 @@
         out.set(new Uint8Array(headerBytes.buffer), 4);
         out.set(new Uint8Array(memoryBuf), 4 + headerBytes.byteLength);
 
-        const suggestedName = `${this.currentChapter}_slot${slot + 1}.deltarune-save`;
+        const suggestedName = `${this.currentChapter}_slot${slot + 1}.save`;
 
         // Prefer File System Access API when available (Chrome/Chromium, ChromeOS)
         if (window.showSaveFilePicker) {
           try {
             const handle = await window.showSaveFilePicker({
               suggestedName,
-              types: [{ description: 'Deltarune save', accept: { 'application/octet-stream': ['.deltarune-save'] } }],
+              // Use a simple extension token acceptable to the picker
+              types: [{ description: 'Deltarune save', accept: { 'application/octet-stream': ['.save'] } }],
             });
             const writable = await handle.createWritable();
             await writable.write(out);
@@ -299,7 +300,8 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = suggestedName;
+        // Keep the legacy filename with the more descriptive extension for downloads
+        a.download = `${this.currentChapter}_slot${slot + 1}.deltarune-save`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
