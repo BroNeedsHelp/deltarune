@@ -315,6 +315,7 @@
 
     async importSlot(slot) {
       this.showToast('Importing...');
+      console.log('SaveSystem importSlot start', slot, { picker: !!window.showOpenFilePicker });
       let file = null;
       const safeAccept = ['.deltarune-save', '.save', 'application/octet-stream'];
 
@@ -370,6 +371,7 @@
         document.body.removeChild(input);
       }
 
+      console.log('SaveSystem importSlot selected file', file && { name: file.name, size: file.size, type: file.type });
       if (!file) {
         this.showToast('Import canceled', 'error');
         return;
@@ -377,9 +379,11 @@
 
       const parsed = await this.parseSaveFile(file);
       if (!parsed) {
+        console.warn('SaveSystem importSlot parse failed', file);
         this.showToast('Invalid save file', 'error');
         return;
       }
+      console.log('SaveSystem importSlot parsed metadata', parsed.metadata);
 
       try {
         const copy = new Uint8Array(parsed.memory.byteLength);
@@ -402,14 +406,23 @@
 
     parseSaveFile(file) {
       return file.arrayBuffer().then((buffer) => {
-        if (buffer.byteLength < 4) return null;
+        console.log('SaveSystem parseSaveFile buffer length', buffer.byteLength);
+        if (buffer.byteLength < 4) {
+          console.warn('SaveSystem parseSaveFile file too short', buffer.byteLength);
+          return null;
+        }
         const headerSize = new DataView(buffer, 0, 4).getUint32(0, true);
-        if (buffer.byteLength < 4 + headerSize) return null;
+        console.log('SaveSystem parseSaveFile headerSize', headerSize);
+        if (buffer.byteLength < 4 + headerSize) {
+          console.warn('SaveSystem parseSaveFile header truncated', { buffer: buffer.byteLength, headerSize });
+          return null;
+        }
         const headerBytes = new Uint8Array(buffer, 4, headerSize);
         let metadata;
         try {
           metadata = JSON.parse(new TextDecoder().decode(headerBytes));
         } catch (error) {
+          console.error('SaveSystem parseSaveFile JSON parse failed', error);
           return null;
         }
         const memory = buffer.slice(4 + headerSize);
